@@ -1,0 +1,5 @@
+# Initial project dependencies
+# Machine-learning dependencies will be added after the
+# environment is verified and the baseline is selected.
+
+# No external packages are required for Phase 0.

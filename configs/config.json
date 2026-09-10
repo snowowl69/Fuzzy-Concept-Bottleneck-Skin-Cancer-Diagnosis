@@ -1,0 +1,17 @@
+{
+  "project_name": "Fuzzy Concept-Bottleneck Skin Cancer Diagnosis",
+  "project_root": ".",
+  "paths": {
+    "raw_data": "data/raw",
+    "processed_data": "data/processed",
+    "masks": "data/masks",
+    "models": "models",
+    "reports": "reports",
+    "logs": "logs"
+  },
+  "settings": {
+    "random_seed": 42,
+    "image_size": 224,
+    "device": "cpu"
+  }
+}
