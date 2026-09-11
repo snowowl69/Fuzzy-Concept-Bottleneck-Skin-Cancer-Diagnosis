@@ -11,7 +11,17 @@
   },
   "settings": {
     "random_seed": 42,
-    "image_size": 224,
+    "image_size": 256,
+    "num_classes": 7,
     "device": "cpu"
+  },
+  "diagnosis_classes": {
+    "0": "Melanoma",
+    "1": "Melanocytic Nevus",
+    "2": "Basal Cell Carcinoma",
+    "3": "Actinic Keratosis",
+    "4": "Benign Keratosis",
+    "5": "Dermatofibroma",
+    "6": "Vascular Lesion"
   }
 }

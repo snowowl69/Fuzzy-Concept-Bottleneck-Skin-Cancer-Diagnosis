@@ -1,0 +1,17 @@
+﻿cff-version: 1.2.0
+message: "If you use this software or methodology in your research, please cite it as below."
+authors:
+  - name: "snowowl69"
+title: "Fuzzy Concept-Bottleneck Model for Skin Cancer Diagnosis and Counterfactual Explanations"
+version: 1.0.0
+date-released: 2026-09-11
+url: "https://github.com/snowowl69/Fuzzy-Concept-Bottleneck-Skin-Cancer-Diagnosis"
+keywords:
+  - "skin cancer"
+  - "dermoscopy"
+  - "concept bottleneck models"
+  - "fuzzy logic"
+  - "explainable ai"
+  - "counterfactual explanations"
+  - "isic2018"
+license: MIT

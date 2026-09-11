@@ -1,69 +1,31 @@
-<<<<<<< HEAD
-# Fuzzy-Concept-Bottleneck-Skin-Cancer-Diagnosis
-=======
 # Fuzzy Concept-Bottleneck Skin Cancer Diagnosis
 
-## Project status
+## Project Status
 
-Phase 0 — Project setup
-
-The project is currently in the initial development stage.
+The project is currently in the active development stage. The Streamlit prototype has been removed in favor of a robust Flask-based web application and an end-to-end AWS deployment plan.
 
 ## Objective
 
 Build a research prototype that takes a dermoscopic skin-lesion image and produces:
 
-1. A lesion segmentation mask.
-2. Automatically extracted geometric and colour features.
+1. A lesion segmentation mask (using U-Net).
+2. Automatically extracted geometric and color features (ABCDE criteria).
 3. Continuous fuzzy clinical concepts.
-4. A diagnosis prediction.
+4. A diagnosis prediction across 7 ISIC classes.
 5. A concept-level counterfactual explanation.
 
-## Proposed pipeline
+## Proposed Pipeline
 
 Skin image
 → Preprocessing
-→ Lesion segmentation
+→ Lesion segmentation (U-Net)
 → Geometric feature extraction
 → Adaptive fuzzy concept generator
 → Fuzzy concept bottleneck
-→ Diagnosis
-→ Counterfactual explanation
-
-## Development approach
-
-We will:
-
-- Build and test the AI pipeline locally first.
-- Start with a small working baseline.
-- Add research complexity gradually.
-- Test each phase before moving to the next.
-- Deploy to AWS only after local inference works.
-
-## Current phase
-
-Phase 0 — Project setup
-
-## Planned phases
-
-1. Project setup
-2. Dataset preparation
-3. Lesion segmentation
-4. Geometric feature extraction
-5. Adaptive fuzzy concept generator
-6. Fuzzy concept bottleneck
-7. Diagnosis
-8. Counterfactual explanation
-9. Model evaluation
-10. AWS deployment
-11. Website integration
-12. Final documentation and presentation
+→ Diagnosis Head
+→ Counterfactual explanation generator
 
 ## Disclaimer
 
 This project is a research prototype.
-
-It is not a medical diagnostic tool and must not be used
-to make clinical decisions.# Fuzzy-Concept-Bottleneck-Skin-Cancer-Diagnosis
->>>>>>> 9442aa6 (first commit)
-# Fuzzy-Concept-Bottleneck-Skin-Cancer-Diagnosis
+It is not a medical diagnostic tool and must not be used to make clinical decisions.

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuzzy Concept-Bottleneck Skin Cancer Diagnosis</title>
+    <meta name="description" content="AI-powered skin cancer diagnosis system using fuzzy concept bottleneck models with interpretable ABCDE clinical concepts and counterfactual explanations.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="app-container">
+
+    <!-- ========== Header ========== -->
+    <header class="app-header">
+        <span class="app-header__icon">🔬</span>
+        <h1 class="app-header__title">Fuzzy Concept-Bottleneck<br>Skin Cancer Diagnosis</h1>
+        <p class="app-header__subtitle">
+            Upload a dermoscopic image for AI-powered analysis with interpretable fuzzy ABCDE clinical concepts, real-time intervention, and visual counterfactual explanations
+        </p>
+    </header>
+
+    <!-- ========== Upload Section ========== -->
+    <section id="upload-section">
+        <div class="upload-zone" id="upload-zone">
+            <span class="upload-zone__icon">📤</span>
+            <h2 class="upload-zone__title">Drop Dermoscopic Image Here</h2>
+            <p class="upload-zone__hint">or click to browse &mdash; supports JPG, PNG (max 16 MB)</p>
+            <input type="file" id="file-input" accept="image/*">
+        </div>
+        <div class="preprocess-toggle-bar">
+            <label class="preprocess-toggle-label">
+                <input type="checkbox" id="preprocess-toggle" checked>
+                <span>Enable DullRazor Hair Removal &amp; Color Constancy Normalization</span>
+            </label>
+        </div>
+    </section>
+
+    <!-- ========== Loading ========== -->
+    <section id="loading-section" class="hidden">
+        <div class="loading-overlay">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">Analyzing lesion image&hellip;</p>
+            <p class="upload-zone__hint mt-4">Running artefact removal, segmentation, feature extraction, and fuzzy concept analysis</p>
+        </div>
+    </section>
+
+    <!-- ========== Results ========== -->
+    <section id="results-section" class="hidden">
+
+        <!-- Top Action Bar -->
+        <div class="action-bar animate-in">
+            <button class="btn btn--outline" onclick="newAnalysis()">↩ New Analysis</button>
+            <button class="btn btn--secondary" onclick="exportClinicalReport()">📄 Download Clinical Report</button>
+        </div>
+
+        <!-- Row 1: Segmentation + Diagnosis -->
+        <div class="results-grid results-grid--2col animate-in mt-4">
+
+            <!-- Segmentation Card -->
+            <div class="glass-card animate-in animate-in--delay-1">
+                <h3 class="glass-card__title"><span>🧬</span> Lesion Segmentation</h3>
+                <div class="image-preview-container">
+                    <img id="overlay-img" class="seg-image" src="" alt="Segmentation Overlay">
+                </div>
+            </div>
+
+            <!-- Diagnosis Card -->
+            <div class="glass-card animate-in animate-in--delay-2">
+                <h3 class="glass-card__title"><span>🩺</span> Diagnosis Prediction</h3>
+                <div class="prediction-class" id="pred-class"></div>
+                <div class="prediction-confidence" id="pred-confidence"></div>
+                <span id="intervention-badge" class="badge badge--intervened hidden">⚡ Intervened</span>
+                <div id="probabilities" class="mt-4"></div>
+            </div>
+        </div>
+
+        <!-- Row 2: Features + Concepts -->
+        <div class="results-grid results-grid--2col mt-6 animate-in animate-in--delay-3">
+
+            <!-- Features Card -->
+            <div class="glass-card">
+                <h3 class="glass-card__title"><span>📐</span> Extracted Geometric Features</h3>
+                <div style="max-height: 320px; overflow-y: auto;">
+                    <table class="features-table">
+                        <thead>
+                            <tr><th>Feature</th><th>Value</th></tr>
+                        </thead>
+                        <tbody id="features-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Interactive Concepts Card -->
+            <div class="glass-card">
+                <h3 class="glass-card__title"><span>🎛️</span> Interactive Fuzzy Concepts</h3>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
+                    Adjust concept memberships to observe real-time diagnosis changes
+                </p>
+
+                <div class="slider-group">
+                    <div class="slider-group__header">
+                        <label class="slider-group__label">Asymmetry Score</label>
+                        <span class="slider-group__value" id="val_0">0.00</span>
+                    </div>
+                    <input type="range" id="slider_0" min="0" max="1" step="0.01" value="0" oninput="onSliderInput()">
+                </div>
+
+                <div class="slider-group">
+                    <div class="slider-group__header">
+                        <label class="slider-group__label">Border Irregularity</label>
+                        <span class="slider-group__value" id="val_1">0.00</span>
+                    </div>
+                    <input type="range" id="slider_1" min="0" max="1" step="0.01" value="0" oninput="onSliderInput()">
+                </div>
+
+                <div class="slider-group">
+                    <div class="slider-group__header">
+                        <label class="slider-group__label">Color Variation</label>
+                        <span class="slider-group__value" id="val_2">0.00</span>
+                    </div>
+                    <input type="range" id="slider_2" min="0" max="1" step="0.01" value="0" oninput="onSliderInput()">
+                </div>
+
+                <div class="slider-group">
+                    <div class="slider-group__header">
+                        <label class="slider-group__label">Diameter Score</label>
+                        <span class="slider-group__value" id="val_3">0.00</span>
+                    </div>
+                    <input type="range" id="slider_3" min="0" max="1" step="0.01" value="0" oninput="onSliderInput()">
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 3: Counterfactual -->
+        <div class="results-grid results-grid--full mt-6 animate-in animate-in--delay-4">
+            <div class="glass-card">
+                <h3 class="glass-card__title"><span>💡</span> Counterfactual Explanation &amp; Visualizer</h3>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
+                    Explore minimal concept modifications to flip the diagnosis and inspect the simulated counterfactual lesion.
+                </p>
+                <div class="cf-controls">
+                    <select id="target-class" class="custom-select">
+                        <option value="0">Melanoma</option>
+                        <option value="1">Melanocytic Nevus</option>
+                        <option value="2">Basal Cell Carcinoma</option>
+                        <option value="3">Actinic Keratosis</option>
+                        <option value="4">Benign Keratosis</option>
+                        <option value="5">Dermatofibroma</option>
+                        <option value="6">Vascular Lesion</option>
+                    </select>
+                    <button id="cf-btn" class="btn btn--primary" onclick="generateCounterfactual()">
+                        ✨ Generate Explanation
+                    </button>
+                </div>
+                <div id="explanation-box" class="explanation-box hidden"></div>
+
+                <!-- Visual Comparison (Original vs Counterfactual) -->
+                <div id="cf-visual-comparison" class="cf-comparison-container hidden mt-4">
+                    <h4 class="subcard-title">🔬 Visual Lesion Simulation (Original vs Counterfactual)</h4>
+                    <div class="cf-images-grid">
+                        <div class="cf-image-box">
+                            <span class="cf-badge">Original Lesion</span>
+                            <img id="cf-orig-img" class="cf-render-img" src="" alt="Original Lesion">
+                        </div>
+                        <div class="cf-image-box">
+                            <span class="cf-badge cf-badge--cf">Counterfactual Lesion</span>
+                            <img id="cf-rendered-img" class="cf-render-img" src="" alt="Counterfactual Lesion">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- ========== Disclaimer ========== -->
+    <footer class="disclaimer">
+        <p class="disclaimer__text">
+            <span class="disclaimer__icon">⚠️</span>
+            <strong>Research Prototype.</strong> This system is not a medical diagnostic tool.
+            It must not be used to make clinical decisions. Results are generated by a machine learning model
+            and may not reflect actual clinical findings. Always consult a qualified dermatologist.
+        </p>
+    </footer>
+
+</div>
+
+<!-- Printable Clinical Report Modal / Container -->
+<div id="report-modal" class="report-modal-overlay hidden">
+    <div class="report-modal-card">
+        <div class="report-header">
+            <div>
+                <h2>Clinical Diagnostic Summary Report</h2>
+                <p class="report-sub">Fuzzy Concept-Bottleneck Skin Lesion Analysis</p>
+            </div>
+            <button class="btn btn--outline" onclick="closeReportModal()">✕ Close</button>
+        </div>
+        <div id="report-content" class="report-body">
+            <!-- Populated via JavaScript -->
+        </div>
+        <div class="report-footer-actions">
+            <button class="btn btn--primary" onclick="window.print()">🖨️ Print / Save as PDF</button>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

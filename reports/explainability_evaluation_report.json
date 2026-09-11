@@ -1,0 +1,33 @@
+{
+  "samples_evaluated": 30,
+  "counterfactual_success_rate": 0.2,
+  "average_l1_sparsity": 0.10848144189609836,
+  "target_class_success_breakdown": {
+    "Melanoma": {
+      "attempts": 6,
+      "success": 1
+    },
+    "Melanocytic Nevus": {
+      "attempts": 13,
+      "success": 0
+    },
+    "Actinic Keratosis": {
+      "attempts": 4,
+      "success": 3
+    },
+    "Benign Keratosis": {
+      "attempts": 6,
+      "success": 1
+    },
+    "Dermatofibroma": {
+      "attempts": 1,
+      "success": 1
+    }
+  },
+  "concept_sensitivity_matrix": {
+    "Asymmetry Score": -0.02065296471118927,
+    "Border Irregularity Score": 0.057666584849357605,
+    "Color Variation Score": -0.0011562705039978027,
+    "Diameter Score": 0.008206665515899658
+  }
+}

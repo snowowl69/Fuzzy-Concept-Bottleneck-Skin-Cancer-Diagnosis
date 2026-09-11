@@ -1,0 +1,172 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Fuzzy Concept Bottleneck Skin Cancer Diagnosis Infrastructure'
+
+Parameters:
+  DBUsername:
+    Type: String
+    Description: Database Admin Username
+    Default: admin
+  DBPassword:
+    Type: String
+    NoEcho: true
+    Description: Database Admin Password
+
+Resources:
+  # 1. Amazon S3 Bucket for Media Storage
+  AppS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'skin-cancer-diagnosis-${AWS::AccountId}-${AWS::Region}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # 2. Amazon Cognito User Pool for Authentication
+  AppUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: SkinCancerClinicians
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+
+  # 3. AWS Secrets Manager for RDS Credentials
+  DBSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: skincancer/rds/credentials
+      SecretString: !Sub '{"username":"${DBUsername}","password":"${DBPassword}","engine":"postgres","host":"${AppDatabase.Endpoint.Address}","port":${AppDatabase.Endpoint.Port},"dbname":"skincancerdb"}'
+
+  # 4. Amazon RDS PostgreSQL Database
+  AppDatabase:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: '20'
+      DBInstanceClass: db.t3.micro
+      Engine: postgres
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      DBName: skincancerdb
+      PubliclyAccessible: false
+
+  # 5. IAM Role for EC2 Instance (Access to S3, RDS Secrets, CloudWatch)
+  EC2IAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: EC2AppPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource: !Sub '${AppS3Bucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref DBSecret
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: 'arn:aws:logs:*:*:*'
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref EC2IAMRole
+
+  # 6. Amazon EC2 Instance (Hosts Flask Application)
+  AppServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.medium
+      ImageId: resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/pvt/current/amd64/hvm/ebs-gp2/ami-id
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      UserData: 
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          apt-get update -y
+          apt-get install -y python3-pip python3-venv git nginx
+          mkdir -p /home/ubuntu/app
+          # Flask deployment steps outlined in aws/setup_ec2.sh
+
+  # 7. Amazon API Gateway REST API
+  SkinCancerApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: SkinCancerDiagnosisAPI
+      Description: API Gateway routing for Fuzzy Concept Bottleneck Diagnosis Backend
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  # Cognito Authorizer for API Gateway
+  ApiCognitoAuthorizer:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      Name: CognitoUserAuthorizer
+      Type: COGNITO_USER_POOLS
+      IdentitySource: method.request.header.Authorization
+      RestApiId: !Ref SkinCancerApiGateway
+      ProviderARNs:
+        - !GetAtt AppUserPool.Arn
+
+  # API Gateway Proxy Resource to EC2 Backend
+  ApiProxyResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref SkinCancerApiGateway
+      ParentId: !GetAtt SkinCancerApiGateway.RootResourceId
+      PathPart: '{proxy+}'
+
+  # Any HTTP method forwarded to EC2
+  ApiProxyMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref SkinCancerApiGateway
+      ResourceId: !Ref ApiProxyResource
+      HttpMethod: ANY
+      AuthorizationType: NONE
+      Integration:
+        Type: HTTP_PROXY
+        IntegrationHttpMethod: ANY
+        Uri: !Sub 'http://${AppServer.PublicDnsName}:5000/{proxy}'
+        PassthroughBehavior: WHEN_NO_MATCH
+
+  # API Deployment & Stage
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn: ApiProxyMethod
+    Properties:
+      RestApiId: !Ref SkinCancerApiGateway
+
+  ApiStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId: !Ref SkinCancerApiGateway
+      DeploymentId: !Ref ApiDeployment
+      StageName: prod
+
+Outputs:
+  S3BucketName:
+    Value: !Ref AppS3Bucket
+  DatabaseEndpoint:
+    Value: !GetAtt AppDatabase.Endpoint.Address
+  CognitoUserPoolId:
+    Value: !Ref AppUserPool
+  ApiGatewayUrl:
+    Value: !Sub 'https://${SkinCancerApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/'
+
