@@ -1,7 +1,16 @@
-﻿# Environment & Secrets
+# Environment, Secrets & Private Keys
 .env
 *.env
 !.env.example
+*.pem
+*.key
+*.crt
+*.cer
+*.pfx
+*.p12
+*.pub
+credentials.json
+client_secret*.json
 
 # Python & Caches
 __pycache__/
@@ -32,7 +41,16 @@ data/raw/
 
 # Model Checkpoints (Keep repository lightweight)
 models/*.pt
+models/*.pth
 models/*.onnx
+models/*.bin
+models/*.ckpt
+models/*.safetensors
+
+# Local Databases
+*.sqlite
+*.sqlite3
+*.db
 
 # Logs & Runtime
 logs/

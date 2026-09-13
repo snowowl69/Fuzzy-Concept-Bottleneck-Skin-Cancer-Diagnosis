@@ -3,6 +3,10 @@ import json
 import logging
 import boto3
 from botocore.exceptions import ClientError
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import watchtower
 
 class AWSManager:
