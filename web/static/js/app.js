@@ -275,6 +275,11 @@ async function runIntervention() {
 // Counterfactual Generation & Visualizer
 // ==============================================================
 async function generateCounterfactual() {
+    if (!currentResults || !currentConcepts || currentConcepts.length !== 4) {
+        alert("Please upload and analyze a dermoscopic image first before generating a counterfactual explanation.");
+        return;
+    }
+
     const targetSelect = document.getElementById("target-class");
     const targetClass = targetSelect.value;
 
@@ -294,26 +299,36 @@ async function generateCounterfactual() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
         });
-        const data = await res.json();
 
-        if (!data.error) {
-            lastCounterfactualText = data.explanation_text;
-            explanationBox.innerHTML = `
-                <strong>🎯 Target Class:</strong> ${data.target_class_name}<br><br>
-                <strong>📝 Clinical Explanation:</strong> ${data.explanation_text}
-            `;
-            explanationBox.classList.remove("hidden");
+        let data;
+        try {
+            data = await res.json();
+        } catch (parseErr) {
+            throw new Error(`Server returned non-JSON response (${res.status})`);
+        }
 
-            // Display visual comparison if counterfactual image was rendered
-            if (data.counterfactual_image_b64 && currentResults && cfVisualComparison) {
-                cfOrigImg.src = "data:image/png;base64," + currentResults.original_img_b64;
-                cfRenderedImg.src = "data:image/png;base64," + data.counterfactual_image_b64;
-                cfVisualComparison.classList.remove("hidden");
-            }
+        if (!res.ok || data.error) {
+            const errorMsg = data.error || `Request failed with status ${res.status}`;
+            alert("Counterfactual generation notice: " + errorMsg);
+            return;
+        }
+
+        lastCounterfactualText = data.explanation_text;
+        explanationBox.innerHTML = `
+            <strong>🎯 Target Class:</strong> ${data.target_class_name}<br><br>
+            <strong>📝 Clinical Explanation:</strong> ${data.explanation_text}
+        `;
+        explanationBox.classList.remove("hidden");
+
+        // Display visual comparison if counterfactual image was rendered
+        if (data.counterfactual_image_b64 && currentResults && cfVisualComparison) {
+            cfOrigImg.src = "data:image/png;base64," + currentResults.original_img_b64;
+            cfRenderedImg.src = "data:image/png;base64," + data.counterfactual_image_b64;
+            cfVisualComparison.classList.remove("hidden");
         }
     } catch (err) {
         console.error("Counterfactual failed:", err);
-        alert("Counterfactual generation failed.");
+        alert("Counterfactual generation notice: " + (err.message || "An unexpected error occurred."));
     } finally {
         cfBtn.textContent = "✨ Generate Explanation";
         cfBtn.disabled = false;

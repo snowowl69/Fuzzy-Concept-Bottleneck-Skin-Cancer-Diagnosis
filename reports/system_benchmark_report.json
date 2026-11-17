@@ -5,40 +5,40 @@
   },
   "latencies": {
     "hair_removal_ms": {
-      "mean_ms": 45.85,
-      "std_ms": 0.12,
-      "p95_ms": 45.96
+      "mean_ms": 59.12,
+      "std_ms": 12.3,
+      "p95_ms": 70.19
     },
     "illumination_norm_ms": {
-      "mean_ms": 7.85,
-      "std_ms": 0.57,
-      "p95_ms": 8.36
+      "mean_ms": 10.35,
+      "std_ms": 0.78,
+      "p95_ms": 11.05
     },
     "feature_extraction_ms": {
-      "mean_ms": 1.57,
-      "std_ms": 0.33,
-      "p95_ms": 1.87
+      "mean_ms": 1.59,
+      "std_ms": 0.23,
+      "p95_ms": 1.8
     },
     "fuzzy_bottleneck_inference_ms": {
-      "mean_ms": 0.48,
+      "mean_ms": 0.42,
       "std_ms": 0.08,
-      "p95_ms": 0.56
+      "p95_ms": 0.5
     },
     "counterfactual_generation_ms": {
-      "mean_ms": 22.17,
-      "std_ms": 0.3,
-      "p95_ms": 22.44
+      "mean_ms": 125.55,
+      "std_ms": 52.21,
+      "p95_ms": 172.55
     },
     "counterfactual_rendering_ms": {
-      "mean_ms": 3.18,
-      "std_ms": 0.54,
-      "p95_ms": 3.66
+      "mean_ms": 3.8,
+      "std_ms": 0.1,
+      "p95_ms": 3.89
     },
     "end_to_end_ms": {
-      "mean_ms": 81.73,
-      "std_ms": 2.32,
-      "p95_ms": 83.82
+      "mean_ms": 200.95,
+      "std_ms": 65.55,
+      "p95_ms": 259.95
     }
   },
-  "throughput_fps": 12.24
+  "throughput_fps": 4.98
 }

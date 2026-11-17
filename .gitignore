@@ -64,3 +64,9 @@ Thumbs.db
 *.swp
 *~
 *.bak
+
+# Database ignores (do not commit databases)
+*.rdb
+*.mdb
+*.accdb
+.~lock.*

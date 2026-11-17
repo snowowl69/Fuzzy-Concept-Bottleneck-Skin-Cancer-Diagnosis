@@ -31,56 +31,107 @@ class CounterfactualGenerator:
     def generate_counterfactual_concept(
         self,
         original_concepts: torch.Tensor,
-        target_class_idx: int = 0,  # 0 = Benign Nevus
-        steps: int = 100,
-        lr: float = 0.05,
-        l1_reg: float = 0.5,
+        target_class_idx: int = 0,
+        steps: int = 150,
+        lr: float = 0.08,
+        l1_reg: float = 0.05,
     ) -> Dict:
         """Optimize concept shift delta to achieve target diagnosis with minimal change."""
         self.model.eval()
         if original_concepts.dim() == 1:
             original_concepts = original_concepts.unsqueeze(0)
 
-        # Clone original concepts
         orig_c = original_concepts.detach().clone()
-        delta = nn.Parameter(torch.zeros_like(orig_c))
-        optimizer = optim.Adam([delta], lr=lr)
+        with torch.no_grad():
+            _, orig_probs = self.model.diagnosis_head(orig_c)
+        orig_pred_idx = torch.argmax(orig_probs, dim=-1).item()
+        orig_name = DIAGNOSIS_CLASSES.get(orig_pred_idx, "Unknown")
+        target_name = DIAGNOSIS_CLASSES.get(target_class_idx, "Unknown")
 
+        # Case 1: Model already predicts the target diagnosis
+        if orig_pred_idx == target_class_idx:
+            return {
+                "target_class_idx": target_class_idx,
+                "target_class_name": target_name,
+                "success": True,
+                "original_concepts": {
+                    self.concept_names[i]: float(orig_c[0, i].item()) for i in range(4)
+                },
+                "counterfactual_concepts": {
+                    self.concept_names[i]: float(orig_c[0, i].item()) for i in range(4)
+                },
+                "concept_deltas": {
+                    self.concept_names[i]: 0.0 for i in range(4)
+                },
+                "original_probabilities": {
+                    DIAGNOSIS_CLASSES.get(i, f"Class_{i}"): float(orig_probs[0, i].item())
+                    for i in range(orig_probs.shape[1])
+                },
+                "counterfactual_probabilities": {
+                    DIAGNOSIS_CLASSES.get(i, f"Class_{i}"): float(orig_probs[0, i].item())
+                    for i in range(orig_probs.shape[1])
+                },
+                "explanation_text": f"The model already predicts {target_name} ({orig_probs[0, orig_pred_idx].item()*100:.1f}% confidence). No counterfactual modification needed.",
+            }
+
+        # Case 2: Optimize concept shift delta to flip prediction
         target_tensor = torch.tensor([target_class_idx], dtype=torch.long)
         criterion = nn.CrossEntropyLoss()
 
-        best_delta = delta.detach().clone()
-        best_loss = float("inf")
-        found_target = False
+        def _optimize(learning_rate, reg_weight, n_steps):
+            delta = nn.Parameter(torch.zeros_like(orig_c))
+            optimizer = optim.Adam([delta], lr=learning_rate)
+            best_d = None
+            best_l = float("inf")
+            best_prob_d = None
+            max_target_prob = -1.0
+            found = False
 
-        for step in range(steps):
-            optimizer.zero_grad()
-            counterfactual_c = torch.clamp(orig_c + delta, 0.0, 1.0)
-            logits, probs = self.model.diagnosis_head(counterfactual_c)
+            for _ in range(n_steps):
+                optimizer.zero_grad()
+                cf_c = torch.clamp(orig_c + delta, 0.0, 1.0)
+                logits, probs = self.model.diagnosis_head(cf_c)
 
-            ce_loss = criterion(logits, target_tensor)
-            sparsity_loss = torch.norm(delta, p=1)
-            total_loss = ce_loss + l1_reg * sparsity_loss
+                t_prob = probs[0, target_class_idx].item()
+                if t_prob > max_target_prob:
+                    max_target_prob = t_prob
+                    best_prob_d = delta.detach().clone()
 
-            total_loss.backward()
-            optimizer.step()
+                ce_loss = criterion(logits, target_tensor)
+                sparsity_loss = torch.norm(delta, p=1)
+                total_loss = ce_loss + reg_weight * sparsity_loss
 
-            pred_class = torch.argmax(probs, dim=-1).item()
-            if pred_class == target_class_idx and total_loss.item() < best_loss:
-                best_loss = total_loss.item()
-                best_delta = delta.detach().clone()
-                found_target = True
+                total_loss.backward()
+                optimizer.step()
+
+                pred = torch.argmax(probs, dim=-1).item()
+                if pred == target_class_idx and total_loss.item() < best_l:
+                    best_l = total_loss.item()
+                    best_d = delta.detach().clone()
+                    found = True
+
+            return found, best_d if found else best_prob_d, max_target_prob
+
+        # Primary optimization pass
+        found_target, best_delta, max_prob = _optimize(lr, l1_reg, steps)
+
+        # Adaptive fallback pass with higher learning rate and lower L1 restriction if needed
+        if not found_target:
+            found_fallback, fallback_delta, fallback_prob = _optimize(lr * 1.8, l1_reg * 0.2, steps + 50)
+            if found_fallback or fallback_prob > max_prob:
+                found_target = found_fallback
+                best_delta = fallback_delta
+                max_prob = fallback_prob
+
+        if best_delta is None:
+            best_delta = torch.zeros_like(orig_c)
 
         final_c = torch.clamp(orig_c + best_delta, 0.0, 1.0)
-        _, orig_probs = self.model.diagnosis_head(orig_c)
-        _, final_probs = self.model.diagnosis_head(final_c)
+        with torch.no_grad():
+            _, final_probs = self.model.diagnosis_head(final_c)
 
-        orig_pred_idx = torch.argmax(orig_probs, dim=-1).item()
         final_pred_idx = torch.argmax(final_probs, dim=-1).item()
-
-        # Build natural language explanation text
-        orig_name = DIAGNOSIS_CLASSES.get(orig_pred_idx, "Unknown")
-        target_name = DIAGNOSIS_CLASSES.get(final_pred_idx, "Unknown")
+        achieved_name = DIAGNOSIS_CLASSES.get(final_pred_idx, "Unknown")
 
         changes = []
         for i, name in enumerate(self.concept_names):
@@ -91,14 +142,18 @@ class CounterfactualGenerator:
                 action = "reducing" if diff < 0 else "increasing"
                 changes.append(f"{action} {name} from {val_orig:.2f} to {val_cf:.2f}")
 
-        if changes:
+        if found_target:
+            change_desc = ", and ".join(changes) if changes else "minimal concept shift"
             explanation_text = (
-                f"The diagnosis flips from {orig_name} to {target_name} by "
-                + ", and ".join(changes)
-                + "."
+                f"The diagnosis flips from {orig_name} to {target_name} by {change_desc} "
+                f"(achieved {target_name} confidence: {final_probs[0, target_class_idx].item()*100:.1f}%)."
             )
         else:
-            explanation_text = f"The model already predicts {target_name}."
+            change_desc = ", and ".join(changes) if changes else "exploring concept boundaries"
+            explanation_text = (
+                f"A complete flip from {orig_name} to {target_name} requires crossing strong decision boundaries; "
+                f"the closest counterfactual shift reaches {max_prob*100:.1f}% {target_name} probability by {change_desc}."
+            )
 
         return {
             "target_class_idx": target_class_idx,

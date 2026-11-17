@@ -308,12 +308,40 @@ def intervene():
 @app.route("/api/counterfactual", methods=["POST"])
 @require_cognito_auth(get_services)
 def counterfactual():
-    data = request.json
-    orig_c = torch.tensor([data["concepts"]], dtype=torch.float32)
-    target_idx = int(data["target_class"])
+    data = request.json or {}
+    concepts = data.get("concepts")
+    if not concepts or not isinstance(concepts, (list, tuple)) or len(concepts) != 4:
+        return jsonify({
+            "error": "Valid concept vector with 4 features is required. Please upload and analyze an image first.",
+            "error_code": "INVALID_CONCEPTS"
+        }), 400
 
-    _, _, cf_gen, aws_mgr, _ = get_services()
-    cf_res = cf_gen.generate_counterfactual_concept(orig_c, target_class_idx=target_idx)
+    target_raw = data.get("target_class")
+    if target_raw is None:
+        return jsonify({
+            "error": "Target class index is required.",
+            "error_code": "MISSING_TARGET_CLASS"
+        }), 400
+
+    try:
+        target_idx = int(target_raw)
+        if not (0 <= target_idx <= 6):
+            raise ValueError(f"Target class index {target_idx} out of range [0, 6]")
+        orig_c = torch.tensor([concepts], dtype=torch.float32)
+    except (ValueError, TypeError) as e:
+        return jsonify({
+            "error": f"Invalid input parameters: {e}",
+            "error_code": "BAD_PARAMETERS"
+        }), 400
+
+    try:
+        _, _, cf_gen, aws_mgr, _ = get_services()
+        cf_res = cf_gen.generate_counterfactual_concept(orig_c, target_class_idx=target_idx)
+    except Exception as e:
+        return jsonify({
+            "error": f"Counterfactual optimization failed: {e}",
+            "error_code": "OPTIMIZATION_FAILED"
+        }), 500
 
     # Render visual counterfactual lesion image if original image is provided
     cf_img_b64 = None
@@ -334,7 +362,10 @@ def counterfactual():
             print(f"Counterfactual image rendering notice: {e}")
 
     if aws_mgr:
-        aws_mgr.log_inference(f"Counterfactual generated for target {cf_res['target_class_name']}")
+        try:
+            aws_mgr.log_inference(f"Counterfactual generated for target {cf_res['target_class_name']}")
+        except Exception as e:
+            print(f"Notice: Telemetry log to CloudWatch skipped: {e}")
 
     return jsonify({
         "success": cf_res["success"],
@@ -395,6 +426,16 @@ def download_report():
         f"attachment; filename=diagnostic_report_{structured['report_id']}.json"
     )
     return response
+
+
+@app.errorhandler(400)
+def handle_bad_request(e):
+    return jsonify({"error": str(e), "error_code": "BAD_REQUEST"}), 400
+
+
+@app.errorhandler(500)
+def handle_server_error(e):
+    return jsonify({"error": "Internal server error occurred.", "error_code": "INTERNAL_ERROR"}), 500
 
 
 if __name__ == "__main__":
